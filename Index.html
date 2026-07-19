@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MV Investimento - 5 Bots</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { background: #0a0a0a; color: #fff; font-family: Arial; padding: 10px; }
+.card { background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+input, select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none; }
+button { background: #00ff88; color: #000; font-weight: bold; cursor: pointer; }
+button.danger { background: #ff0044; color: #fff; }
+.bot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bot-btn { background: #2a2a2a; color: #fff; }
+.bot-btn.active { background: #00ff88; color: #000; }
+#saldo { font-size: 24px; color: #00ff88; }
+</style>
+</head>
+<body>
+
+<div class="card">
+<h2>MV INVESTIMENTO</h2>
+<div>Saldo: <span id="saldo">0.00</span> USD</div>
+<input type="text" id="token" placeholder="Colar Token da Deriv">
+<button onclick="conectar()">Conectar</button>
+</div>
+
+<div class="card">
+<label>Ativo:</label>
+<select id="ativo">
+<option value="frxEURUSD">EUR/USD</option>
+<option value="frxGBPUSD">GBP/USD</option>
+<option value="R_10">Volatility 10 Index</option>
+<option value="R_25">Volatility 25 Index</option>
+</select>
+<label>Stake:</label>
+<input type="number" id="stake" value="0.35" step="0.01">
+</div>
+
+<div class="card">
+<h3>🤖 EQUIPE MV - 5 BOTS</h3>
+<div class="bot-grid">
+<button class="bot-btn" id="btn-ana" onclick="ligarBot('ana')">MV Ana<br><small>Dígitos Diferentes</small></button>
+<button class="bot-btn" id="btn-leo" onclick="ligarBot('leo')">MV Leo<br><small>Tendência 3 Velas</small></button>
+<button class="bot-btn" id="btn-bia" onclick="ligarBot('bia')">MV Bia<br><small>RSI</small></button>
+<button class="bot-btn" id="btn-kauan" onclick="ligarBot('kauan')">MV Kauan<br><small>Martingale Leve</small></button>
+<button class="bot-btn" id="btn-tati" onclick="ligarBot('tati')">MV Tati<br><small>Breakout</small></button>
+</div>
+<button class="danger" onclick="pararTudo()">PARAR TUDO</button>
+</div>
+
+<div class="card">
+<canvas id="chart"></canvas>
+</div>
+
+<script>
+let ws;
+let conectado = false;
+let botAtivo = null;
+let ultimoDigito = null;
+let perdasKauan = false;
+let velas = [];
+let rsi = 50;
+let maiorAlta = 0;
+
+// CONEXÃO DERIV
+function conectar(){
+    const token = document.getElementById('token').value;
+    ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+    
+    ws.onopen = () => {
+        ws.send(JSON.stringify({authorize: token}));
+    };
+    
+    ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        if(data.authorize){
+            conectado = true;
+            document.getElementById('saldo').innerText = data.authorize.balance;
+            iniciarTicks();
+        }
+        if(data.balance) document.getElementById('saldo').innerText = data.balance;
+        if(data.tick) processarTick(data.tick);
+        if(data.buy) console.log("Ordem enviada:", data.buy);
+    };
+}
+
+function iniciarTicks(){
+    const ativo = document.getElementById('ativo').value;
+    ws.send(JSON.stringify({ticks: ativo, subscribe: 1}));
+}
+
+// LIGAR/PAR BOT
+function ligarBot(nome){
+    pararTudo();
+    botAtivo = nome;
+    document.querySelectorAll('.bot-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-'+nome).classList.add('active');
+    console.log("Bot Ativo:", nome);
+}
+
+function pararTudo(){
+    botAtivo = null;
+    document.querySelectorAll('.bot-btn').forEach(b => b.classList.remove('active'));
+}
+
+// PROCESSAR DADOS
+function processarTick(tick){
+    if(!botAtivo) return;
+    
+    const preco = parseFloat(tick.quote);
+    const digito = parseInt(preco.toString().slice(-1));
+    
+    // Salvar vela simples
+    velas.push({close: preco, open: preco-0.001});
+    if(velas.length > 20) velas.shift();
+    
+    // Chamar bot ativo
+    if(botAtivo === 'ana') botMVAna(digito);
+    if(botAtivo === 'leo') botMVLeo();
+    if(botAtivo === 'bia') botMVBia();
+    if(botAtivo === 'kauan') botMVKauan();
+    if(botAtivo === 'tati') botMVTati(preco);
+}
+
+// 1. MV ANA - DÍGITOS DIFERENTES CONSERVADOR
+function botMVAna(digitoAtual){
+    if(ultimoDigito === null) { ultimoDigito = digitoAtual; return; }
+    if(digitoAtual !== ultimoDigito){
+        comprar("DIGITDIFF");
+    }
+    ultimoDigito = digitoAtual;
+}
+
+// 2. MV LEO - TENDÊNCIA 3 VELAS
+function botMVLeo(){
+    if(velas.length < 3) return;
+    const ult3 = velas.slice(-3);
+    if(ult3.every(v => v.close > v.open)) comprar("CALL");
+    if(ult3.every(v => v.close < v.open)) comprar("PUT");
+}
+
+// 3. MV BIA - RSI
+function botMVBia(){
+    // RSI simplificado
+    rsi = Math.random() * 100; // Troca por cálculo real depois
+    if(rsi < 30) comprar("CALL");
+    if(rsi > 70) comprar("PUT");
+}
+
+// 4. MV KAUAN - MARTINGALE LEVE 1X
+function botMVKauan(){
+    let valor = perdasKauan ? getStake() * 2 : getStake();
+    comprar("DIGITDIFF", valor);
+    // Aqui você precisaria tratar o resultado pra setar perdasKauan = true/false
+}
+
+// 5. MV TATI - BREAKOUT
+function botMVTati(preco){
+    if(preco > maiorAlta){
+        maiorAlta = preco;
+        comprar("CALL");
+    }
+}
+
+// FUNÇÃO COMPRAR
+function comprar(tipo, valor = null){
+    if(!conectado) return;
+    const stake = valor || getStake();
+    const ativo = document.getElementById('ativo').value;
+    
+    ws.send(JSON.stringify({
+        buy: 1,
+        price: stake,
+        parameters: {
+            amount: stake,
+            basis: "stake",
+            contract_type: tipo,
+            currency: "USD",
+            duration: 1,
+            duration_unit: "t",
+            symbol: ativo
+        }
+    }));
+}
+
+function getStake(){
+    return parseFloat(document.getElementById('stake').value);
+}
+</script>
+</body>
+</html>
