@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M.V INVESTIMENTO</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{ --bg: #0a0a0f; --card: #12121a; --gold: #ffc107; --green: #22c55e; --red: #ef4444; --text: #e5e7eb; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial; margin: 0; padding: 0; }
+.header { display: flex; justify-content: space-between; padding: 12px 15px; background: #0f0f16; border-bottom: 1px solid #1f1f2e; position: relative; }
+.logo { font-size: 22px; font-weight: 900; color: var(--gold); letter-spacing: 1px; }
+.online { font-size: 12px; color: #9ca3af; }
+.top-info { display: flex; justify-content: space-between; padding: 15px; }
+.info-box p { margin: 0; font-size: 12px; color: #9ca3af; }
+.info-box h2 { margin: 5px 0; font-size: 20px; }
+.btn { padding: 10px 16px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #1f1f2e; color: var(--text); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-green { background: var(--green); color: #000; }
+.card { background: var(--card); margin: 10px 15px; padding: 15px; border-radius: 12px; border: 1px solid #1f1f2e; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; overflow-y: auto; }
+.modal-content { background: var(--card); margin: 10% auto; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  input, select { background: #1f1f2e; border: 1px solid #2d2d3d; color: #fff; padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+.bottom-nav { display: flex; justify-content: center; gap: 10px; padding: 15px; }
+.whatsapp { position: fixed; bottom: 20px; right: 20px; background: #25d366; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; text-decoration: none; z-index: 10; }
+.bot-selector { background: #1f1f2e; padding: 12px; border-radius: 8px; border-left: 3px solid var(--gold); margin-bottom: 10px; }
+.ranking-item { display: flex; justify-content: space-between; padding: 10px; background: #1f1f2e; margin: 5px 0; border-radius: 6px; }
+.tab-btn { padding: 8px 12px; background: #1f1f2e; border: none; color: #fff; border-radius: 6px; cursor: pointer; }
+.tab-btn.active { background: var(--gold); color: #000; }
+
+/* MENU DROPDOWN CORRIGIDO */
+.dropdown { position: relative; display: inline-block; }
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 45px;
+  background: #1f1f2e;
+  min-width: 220px;
+  border-radius: 8px;
+  border: 1px solid #2d2d3d;
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.dropdown-content.show { display: block; } /* CORRIGIDO AQUI */
+.dropdown-content a { color: var(--text); padding: 12px 16px; text-decoration: none; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2d2d3d; }
+.dropdown-content a:last-child { border-bottom: none; }
+.dropdown-content a:hover { background: #2d2d3d; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">M.V<br>INVESTIMENTO</div>
+    <div class="online">🟢 <span id="online">650</span> online</div>
+  </div>
+
+  <!-- MENU DROPDOWN -->
+  <div class="dropdown">
+    <button class="btn" id="btnMenu">Menu ▼</button>
+    <div class="dropdown-content" id="dropdownMenu">
+      <a href="#" onclick="abrirRanking()">🏆 Ranking de Traders</a>
+      <a href="#" onclick="abrirTreinamento()">📚 Treinamentos</a>
+      <a href="#" onclick="abrirMentor()">👨‍🏫 Mentor M.V</a>
+      <a href="#" onclick="abrirGerenciamento()">📊 Gerenciamento</a>
+      <a href="#" onclick="abrirTermos()">📄 Termos de Uso</a>
+      <a href="#" onclick="abrirSuporte()">💬 Suporte WhatsApp</a>
+    </div>
+  </div>
+</div>
+
+<div class="top-info">
+  <div>
+    <label>Tipo de Conta</label>
+    <select id="tipoConta" class="btn" style="width:140px;">
+      <option>Conta Real</option>
+      <option>Conta Virtual</option>
+    </select>
+  </div>
+  <button class="btn btn-red" onclick="desconectar()">Desconectar</button>
+</div>
+
+<div class="top-info">
+  <div class="info-box">
+    <p>Saldo</p>
+    <h2 id="saldo">$0.00 USD</h2>
+  </div>
+  <div class="info-box" style="text-align:right;">
+    <p>Lucro/Prejuízo</p>
+    <h2 id="lucro" style="color:var(--green);">$0.00</h2>
+    <p style="font-size:12px;">Operações <span id="operacoes">0 / 0</span></p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="bot-selector">
+    <label><b>🤖 Selecionar Bot</b></label>
+    <select id="botAtivoSelect" onchange="trocarBot()">
+      <option value="ana">MV ANA - Dígitos Diferentes</option>
+      <option value="origon">MV ORIGON - 0 a 6 WIN</option>
+      <option value="max">MV MAX - Agressivo</option>
+      <option value="kauan">MV KAUAN - Tendência</option>
+      <option value="exp">MV EXP - Exponencial</option>
+    </select>
+    <small id="botDescricao" style="color:#9ca3af;">Opera quando 3 dígitos são diferentes</small>
+  </div>
+
+  <h3 style="text-align:center;">Último Dígito: <span id="ultimo" style="color:var(--gold);">-</span></h3>
+  <canvas id="graficoDigitos" height="120"></canvas>
+</div>
+
+<div style="display:flex; justify-content: center; gap:15px;">
+  <button class="btn" onclick="abrirConfig()">⚙️</button>
+  <button class="btn btn-green" id="btnIniciar">▶️ INICIAR BOT</button>
+  <button class="btn" onclick="tocarSom()">🔔</button>
+</div>
+
+<div class="bottom-nav">
+  <button class="btn">Analisando</button>
+  <button class="btn">Contrato Aberto</button>
+  <button class="btn">Fechado</button>
+</div>
+
+<a href="https://chat.whatsapp.com/F19oCwUD8XyHf3ESUrOFA3" target="_blank" class="whatsapp">💬</a>
+
+<!-- MODAL CONFIGURAÇÕES -->
+<div id="modalConfig" class="modal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between;">
+      <h3 id="tituloModal">Configurações MV ANA</h3>
+      <span onclick="fecharConfig()" style="cursor:pointer;">X</span>
+    </div>
+    <div class="grid-2">
+      <div><label>Moeda</label><select id="moeda"><option>USD</option><option>EUR</option></select></div>
+      <div>
+        <label>Ativo</label>
+        <select id="ativo">
+          <option value="R_10">Volatility 10</option>
+          <option value="R_25">Volatility 25</option>
+          <option value="R_50">Volatility 50</option>
+          <option value="R_75">Volatility 75</option>
+          <option value="R_100" selected>Volatility 100</option>
+          <option value="R_200">Volatility 200</option>
+          <option value="R_300">Volatility 300</option>
+          <option value="1HZ10V">Volatility 10 1s</option>
+          <option value="1HZ25V">Volatility 25 1s</option>
+          <option value="1HZ50V">Volatility 50 1s</option>
+          <option value="1HZ75V">Volatility 75 1s</option>
+          <option value="1HZ100V">Volatility 100 1s</option>
+        </select>
+      </div>
+      <div><label>Stake (Entrada)</label><input type="number" id="stake" value="1.00"></div>
+      <div><label>Meta de Lucro</label><input type="number" id="meta" value="10"></div>
+      <div><label>Limite de Perda</label><input type="number" id="perda" value="-10"></div>
+      <div><label>Repetições p/ Entrada</label><input type="number" id="repeticoes" value="3"></div>
+    </div>
+    <label style="margin-top:10px;">Token da API Deriv</label>
+    <input type="password" id="token" placeholder="Cole seu token aqui">
+    <button class="btn btn-green" onclick="conectar()" style="width:100%; margin-top:15px;">Conectar</button>
+  </div>
+</div>
+
+<!-- MODAL RANKING -->
+<div id="modalMenu" class="modal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between;">
+      <h3>🏆 Ranking de Traders</h3>
+      <span onclick="fecharMenu()" style="cursor:pointer;">X</span>
+    </div>
+    <div style="display:flex; gap:5px; margin:10px 0;">
+      <button class="tab-btn active" onclick="mudarRanking('dia', this)">Dia</button>
+      <button class="tab-btn" onclick="mudarRanking('semana', this)">Semana</button>
+      <button class="tab-btn" onclick="mudarRanking('mes', this)">Mês</button>
+    </div>
+    <div id="rankingLista"></div>
+  </div>
+</div>
+
+<!-- MODAL TREINAMENTO -->
+<div id="modalTreinamento" class="modal">
+  <div class="modal-content">
+    <h3>📚 Treinamentos M.V</h3>
+    <p>1. Como configurar o Bot</p>
+    <p>2. Gerenciamento de Banca</p>
+    <p>3. Psicologia do Trader</p>
+    <button class="btn btn-green" onclick="fecharTreinamento()" style="width:100%; margin-top:15px;">Fechar</button>
+  </div>
+</div>
+
+<!-- MODAL MENTOR -->
+<div id="modalMentor" class="modal">
+  <div class="modal-content">
+    <h3>👨‍🏫 Mentor M.V</h3>
+    <p>Fale direto com o mentor da M.V Investimento</p>
+    <a href="https://wa.me/" target="_blank" class="btn btn-green" style="width:100%; display:block; text-align:center; margin-top:15px;">Falar no WhatsApp</a>
+    <button class="btn" onclick="fecharMentor()" style="width:100%; margin-top:10px;">Fechar</button>
+  </div>
+</div>
+
+<!-- MODAL GERENCIAMENTO -->
+<div id="modalGerenciamento" class="modal">
+  <div class="modal-content">
+    <h3>📊 Gerenciamento</h3>
+    <p><b>Meta Diária:</b> <span id="metaDiaria">$10.00</span></p>
+    <p><b>Perda Máxima:</b> <span id="perdaMaxima">$10.00</span></p>
+    <p><b>Operações Hoje:</b> <span id="opsHoje">0</span></p>
+    <button class="btn btn-green" onclick="fecharGerenciamento()" style="width:100%; margin-top:15px;">Fechar</button>
+  </div>
+</div>
+
+<audio id="somOperacao" preload="auto">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+let ws; let digitos = [0,0,0,0,0,0,0,0,0,0]; let totalTicks = 0; let chart;
+let rodando = false; let ultimosDigitos = []; let operacoes = 0; let botAtual = 'ana';
+
+const bots = {
+  ana: {nome: "MV ANA", desc: "Opera quando 3 dígitos são diferentes"},
+  origon: {nome: "MV ORIGON", desc: "WIN: 0-6 | LOSS: 7-9"},
+  max: {nome: "MV MAX", desc: "Stake alto em tendência forte"},
+  kauan: {nome: "MV KAUAN", desc: "Segue tendência de dígitos"},
+  exp: {nome: "MV EXP", desc: "Exponencial em dígito quente"}
+};
+
+const rankingData = {
+  dia: [
+    {nome: "M.V Admin", lucro: "$450.20"}, {nome: "Trader Angola", lucro: "$320.10"}, {nome: "BotMaster", lucro: "$210.50"},
+    {nome: "ScalperPro", lucro: "$180.00"}, {nome: "GoldTrader", lucro: "$150.30"}, {nome: "MV Team", lucro: "$120.00"}, {nome: "AnaBot", lucro: "$98.50"}
+  ],
+  semana: [
+    {nome: "M.V Admin", lucro: "$2,100.00"}, {nome: "Trader Angola", lucro: "$1,800.40"}, {nome: "BotMaster", lucro: "$1,500.20"},
+    {nome: "ScalperPro", lucro: "$1,200.00"}, {nome: "GoldTrader", lucro: "$980.00"}, {nome: "MV Team", lucro: "$850.00"}, {nome: "AnaBot", lucro: "$700.50"}
+  ],
+  mes: [
+    {nome: "M.V Admin", lucro: "$8,450.00"}, {nome: "Trader Angola", lucro: "$7,200.00"}, {nome: "BotMaster", lucro: "$6,900.50"},
+    {nome: "ScalperPro", lucro: "$5,500.00"}, {nome: "GoldTrader", lucro: "$4,800.00"}, {nome: "MV Team", lucro: "$4,200.00"}, {nome: "AnaBot", lucro: "$3,950.50"}
+  ]
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  criarGrafico();
+  document.getElementById('btnIniciar').onclick = iniciarBot;
+  mudarRanking('dia', document.querySelector('.tab-btn'));
+
+  // MENU CORRIGIDO
+  document.getElementById('btnMenu').onclick = function(e){
+    e.stopPropagation();
+    document.getElementById('dropdownMenu').classList.toggle('show');
+  }
+  // fecha menu ao clicar fora
+  window.onclick = function(){
+    document.getElementById('dropdownMenu').classList.remove('show');
+  }
+});
+
+function tocarSom(){ const som = document.getElementById('somOperacao'); som.currentTime = 0; som.play().catch(e => {}); }
+
+function trocarBot(){
+  botAtual = document.getElementById('botAtivoSelect').value;
+  document.getElementById('botDescricao').innerText = bots[botAtual].desc;
+  document.getElementById('tituloModal').innerText = `Configurações ${bots[botAtual].nome}`;
+  document.getElementById('btnIniciar').innerText = `▶️ INICIAR ${bots[botAtual].nome}`;
+}
+
+function abrirConfig(){ document.getElementById('modalConfig').style.display = 'block'; }
+function fecharConfig(){ document.getElementById('modalConfig').style.display = 'none'; }
+function abrirRanking(){ document.getElementById('modalMenu').style.display = 'block'; document.getElementById('dropdownMenu').classList.remove('show'); }
+function fecharMenu(){ document.getElementById('modalMenu').style.display = 'none'; }
+function abrirTreinamento(){ document.getElementById('modalTreinamento').style.display = 'block'; document.getElementById('dropdownMenu').classList.remove('show'); }
+function fecharTreinamento(){ document.getElementById('modalTreinamento').style.display = 'none'; }
+function abrirMentor(){ document.getElementById('modalMentor').style.display = 'block'; document.getElementById('dropdownMenu').classList.remove('show'); }
+function fecharMentor(){ document.getElementById('modalMentor').style.display = 'none'; }
+function abrirGerenciamento(){ document.getElementById('modalGerenciamento').style.display = 'block'; document.getElementById('dropdownMenu').classList.remove('show'); }
+function fecharGerenciamento(){ document.getElementById('modalGerenciamento').style.display = 'none'; }
+function abrirTermos(){ alert('Termos de Uso M.V Investimento'); document.getElementById('dropdownMenu').classList.remove('show'); }
+function abrirSuporte(){ window.open('https://wa.me/', '_blank'); document.getElementById('dropdownMenu').classList.remove('show'); }
+
+function mudarRanking(periodo, btn){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let html = '';
+  rankingData[periodo].forEach((t, i) => {
+    html += `<div class="ranking-item"><span>${i+1}. ${t.nome}</span><span style="color:var(--green)">${t.lucro}</span></div>`;
+  });
+  document.getElementById('rankingLista').innerHTML = html;
+}
+
+function criarGrafico(){
+  const ctx = document.getElementById('graficoDigitos');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: ['0','1','2','3','4','5','6','7','8','9'], datasets: [{ data: [0,0,0,0,0,0,0,0,0,0], backgroundColor: '#444' }] },
+    options: { scales: { y: { beginAtZero: true, max: 25, ticks: {color: '#9ca3af'}}, x: {ticks: {color: '#9ca3af'}}}, plugins: { legend: {display: false} } }
+  });
+}
+
+function atualizarGrafico(ultimoDigito){
+  digitos[ultimoDigito]++; totalTicks++;
+  ultimosDigitos.push(ultimoDigito); if(ultimosDigitos.length > 10) ultimosDigitos.shift();
+  let percent = digitos.map(d => totalTicks > 0? ((d / totalTicks) * 100) : 0);
+  chart.data.datasets[0].data = percent.map(p => p.toFixed(0));
+  chart.data.datasets[0].backgroundColor = percent.map((p,i) => i == ultimoDigito? '#22c55e' : '#444');
+  chart.update();
+  document.getElementById('ultimo').innerText = ultimoDigito;
+  if(rodando) executarLogica(ultimoDigito);
+}
+
+function executarLogica(ultimoDigito){
+  const repeticoes = parseInt(document.getElementById('repeticoes').value);
+  let entrou = false;
+  if(botAtual === 'ana' && ultimosDigitos.length >= repeticoes){
+    const ultimos = ultimosDigitos.slice(-repeticoes);
+    let todosDiferentes = new Set(ultimos).size === repeticoes;
+    if(todosDiferentes) entrou = true;
+  }
+  if(botAtual === 'origon'){
+    if([0,1,2,3,4,5,6].includes(ultimoDigito)) entrou = true;
+  }
+  if(entrou){
+    operacoes++;
+    document.getElementById('operacoes').innerText = operacoes + ' / ' + operacoes;
+    document.getElementById('opsHoje').innerText = operacoes;
+    tocarSom();
+  }
+}
+
+function conectar(){
+  const token = document.getElementById('token').value;
+  const ativo = document.getElementById('ativo').value;
+  if(!token) return alert('Cole seu token primeiro!');
+  ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=16929');
+  ws.onopen = () => {
+    ws.send(JSON.stringify({authorize: token}));
+    ws.send(JSON.stringify({ticks: ativo}));
+    alert('Conectado com ' + bots[botAtual].nome + ' no ' + document.getElementById('ativo').options[document.getElementById('ativo').selectedIndex].text);
+    fecharConfig();
+  };
+  ws.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+    if(data.msg_type === 'authorize'){ ws.send(JSON.stringify({balance: 1})); }
+    if(data.msg_type === 'balance'){ document.getElementById('saldo').innerText = `$${data.balance.toFixed(2)} USD`; }
+    if(data.msg_type === 'tick'){
+      const quote = data.tick.quote.toString();
+      const ultimoDigito = parseInt(quote[quote.length - 1]);
+      atualizarGrafico(ultimoDigito);
+    }
+    if(data.error) alert('Erro: ' + data.error.message);
+  };
+}
+
+function iniciarBot(){ if(!ws) return alert('Conecta primeiro!'); rodando = true; alert(bots[botAtual].nome + ' INICIADO'); }
+function desconectar(){ if(ws) ws.close(); rodando = false; alert('BOT PARADO'); }
+setInterval(()=>{ document.getElementById('online').innerText = Math.floor(Math.random() * 200) + 500; }, 5000);
+</script>
+
+</body>
+</html>
