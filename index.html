@@ -118,3 +118,155 @@ function iniciarBot(){if(!conectado) return alert('Conecta primeiro!');if(!botAt
 </script>
 </body>
 </html>
+"use client";
+import { useState, useEffect, useRef } from "react";
+
+export default function Home() {
+  const [token, setToken] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [currency, setCurrency] = useState("USD");
+  const [bot, setBot] = useState("MV RIVEN - Under 7");
+  const [ativo, setAtivo] = useState("frxXAUUSD");
+  const [stake, setStake] = useState("0.35");
+  const [status, setStatus] = useState("Aguardando...");
+  const ws = useRef(null);
+
+  // CONECTAR
+  const connectDeriv = () => {
+    const tokenLimpo = token.trim();
+    if (!tokenLimpo) return alert("Cola o token primeiro");
+
+    setStatus("Conectando...");
+    ws.current = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=1089`);
+
+    ws.current.onopen = () => {
+      ws.current.send(JSON.stringify({ authorize: tokenLimpo }));
+    };
+
+    ws.current.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+
+      if (data.error) {
+        alert("The token is invalid. " + data.error.message);
+        setStatus("Erro na conexão");
+        return;
+      }
+
+      if (data.authorize) {
+        setConnected(true);
+        setStatus("Conectado ✅");
+        getBalance();
+      }
+      
+      if (data.balance) {
+        setBalance(data.balance);
+        setCurrency(data.balance.currency);
+      }
+    };
+
+    ws.current.onclose = () => {
+      setConnected(false);
+      setStatus("Desconectado");
+    };
+  };
+
+  // PEGAR SALDO
+  const getBalance = () => {
+    ws.current.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+  };
+
+  // DESCONECTAR
+  const disconnect = () => {
+    if (ws.current) ws.current.close();
+  };
+
+  // INICIAR BOT
+  const startBot = () => {
+    if (!connected) return alert("Conecta primeiro");
+    
+    const stakeFinal = parseFloat(stake.replace(",", "."));
+    alert(`Bot ${bot} iniciado no ${ativo} com stake $${stakeFinal}`);
+    setStatus("Analisando...");
+  };
+
+  return (
+    <div style={{ background: "#0a0a0a", color: "#fff", minHeight: "100vh", fontFamily: "Arial" }}>
+      <div style={{ background: "#00ff88", color: "#000", padding: 15, textAlign: "center", fontWeight: "bold" }}>
+        MV INVESTIMENTO
+      </div>
+
+      <div style={{ padding: 20 }}>
+        <div style={{ background: "#111", padding: 15, borderRadius: 10, marginBottom: 20 }}>
+          <label>Token da API Deriv:</label>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Cole seu token aqui"
+            style={{ width: "100%", padding: 10, marginTop: 5, background: "#222", color: "#fff", border: "1px solid #333", borderRadius: 5 }}
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <button onClick={connectDeriv} disabled={connected} style={{ flex: 1, padding: 12, background: "#00ff88", color: "#000", border: "none", borderRadius: 5, fontWeight: "bold" }}>
+              Conectar
+            </button>
+            <button onClick={disconnect} disabled={!connected} style={{ flex: 1, padding: 12, background: "red", color: "#fff", border: "none", borderRadius: 5, fontWeight: "bold" }}>
+              Desconectar
+            </button>
+          </div>
+          <p style={{ marginTop: 10 }}>Status: <span style={{ color: connected ? "#00ff88" : "yellow" }}>{status}</span></p>
+          {connected && <p>Saldo: <b>{currency} {balance}</b></p>}
+        </div>
+
+        <div style={{ background: "#111", padding: 15, borderRadius: 10 }}>
+          <h3>Configurações</h3>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label>Moeda</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: "100%", padding: 8, marginTop: 5, background: "#222", color: "#fff" }}>
+                <option>USD</option>
+                <option>EUR</option>
+              </select>
+            </div>
+            <div>
+              <label>Bots</label>
+              <select value={bot} onChange={(e) => setBot(e.target.value)} style={{ width: "100%", padding: 8, marginTop: 5, background: "#222", color: "#fff" }}>
+                <option>MV RIVEN - Under 7</option>
+                <option>MV ANA - Over 6</option>
+                <option>MV CRIPTON</option>
+              </select>
+            </div>
+          </div>
+
+          <p style={{ marginTop: 10 }}>Ganha com dígitos abaixo de 7</p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+            <div>
+              <label>Ativo</label>
+              <select value={ativo} onChange={(e) => setAtivo(e.target.value)} style={{ width: "100%", padding: 8, marginTop: 5, background: "#222", color: "#fff" }}>
+                <option value="frxXAUUSD">Volatility 100</option>
+                <option value="frxEURUSD">Volatility 75</option>
+                <option value="frxGBPUSD">Volatility 50</option>
+              </select>
+            </div>
+            <div>
+              <label>Stake</label>
+              <input
+                type="text"
+                value={stake}
+                onChange={(e) => setStake(e.target.value.replace(",", "."))}
+                style={{ width: "100%", padding: 8, marginTop: 5, background: "#222", color: "#fff" }}
+              />
+            </div>
+          </div>
+          <small style={{ color: "yellow" }}>Use ponto . e não vírgula ,</small>
+
+          <button onClick={startBot} style={{ width: "100%", padding: 15, marginTop: 20, background: "#00ff88", color: "#000", border: "none", borderRadius: 5, fontWeight: "bold", fontSize: 16 }}>
+            INICIAR BOT
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
