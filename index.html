@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M.V INVESTIMENTO</title>
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' wss://ws.binaryws.com">
+<style>
+* { box-sizing: border-box; font-family: 'Segoe UI', Arial; }
+body { background: #0d1117; color: #e6edf3; margin: 0; padding: 10px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.header h2 { color: #fbbf24; margin: 0; font-size: 18px; }
+.status { background: #da3633; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+.status.conectado { background: #238636; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 15px; margin-bottom: 12px; }
+.row { display: flex; justify-content: space-between; gap: 10px; }
+.input, select { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 10px; border-radius: 8px; margin-top: 5px; }
+label { font-size: 12px; color: #8b949e; }
+.btn-green { width: 100%; background: #22c55e; border: none; color: #000; font-weight: bold; padding: 12px; border-radius: 8px; margin-top: 10px; }
+.grafico { text-align: center; }
+.barras { display: flex; gap: 4px; align-items: flex-end; height: 120px; margin-top: 10px; }
+.barras div { flex: 1; background: #30363d; border-radius: 4px 4px 0 0; position: relative; }
+.barras div.ativo { background: #22c55e; }
+.barras span { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; }
+.bottom-bar { display: flex; gap: 10px; }
+.bottom-bar button { flex: 1; padding: 15px; border: none; border-radius: 10px; background: #161b22; border: 1px solid #30363d; color: #e6edf3; font-size: 20px; }
+.bottom-bar button.play { background: #f59e0b; color: #000; }
+.bottom-bar button.play.rodando { background: #22c55e; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+.modal-content { background: #161b22; margin: 5% auto; padding: 20px; border-radius: 12px; width: 90%; border: 1px solid #30363d; max-height: 80vh; overflow-y: auto; }
+.fechar { float: right; cursor: pointer; font-size: 20px; }
+table { width: 100%; font-size: 11px; }
+th { color: #8b949e; text-align: left; padding: 5px; }
+.lucro { color: #22c55e; }
+.preju { color: #da3633; }
+#analisando, #contrato, #fechado { padding: 8px; border-radius: 6px; text-align: center; font-size: 12px; background: #0d1117; }
+.ativo-box { background: #22c55e !important; color: #000; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2>M.V<br>INVESTIMENTO</h2>
+  <span id="status" class="status">Desconectado</span>
+</div>
+
+<div class="card">
+  <div class="row">
+    <div>
+      <label>Tipo de Conta</label>
+      <select id="tipoConta" class="input">
+        <option value="virtual">Conta Virtual</option>
+        <option value="real">Conta Real</option>
+      </select>
+    </div>
+    <button id="btnSom" style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:10px;">🔔 Som: ON</button>
+  </div>
+  <input type="password" id="token" class="input" placeholder="Cola seu Token da Deriv aqui">
+  <div class="row" style="margin-top:10px;">
+    <div><label>Saldo</label><h3 id="saldo">$0.00 USD</h3></div>
+    <div><label>Lucro/Prejuízo</label><h3 id="lucro" class="lucro">$0.00</h3><small id="infoOps">Ops 0 | Banca: 100%</small></div>
+  </div>
+</div>
+
+<div class="card grafico">
+  <h4>Último Dígito: <span id="ultDigito">-</span></h4>
+  <div class="barras" id="barras"></div>
+</div>
+
+<div class="card">
+  <div class="row">
+    <div id="analisando">Analisando</div>
+    <div id="contrato">Contrato Aberto</div>
+    <div id="fechado">Fechado</div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button onclick="abrirConfig()">⚙️</button>
+  <button class="play" id="btnPlay">▶️</button>
+  <button>💰</button>
+</div>
+
+<div class="card">
+  <div class="row">
+    <h4>Histórico</h4>
+    <button style="background:#da3633; border:none; color:#fff; padding:5px 10px; border-radius:5px;" onclick="limparHist()">Limpar</button>
+  </div>
+  <table id="historico"><tr><th>Hora</th><th>Estratégia</th><th>Tick</th><th>Preço</th><th>Resultado</th></tr></table>
+</div>
+
+<!-- POPUP CONFIGURAÇÕES -->
+<div id="modalConfig" class="modal">
+  <div class="modal-content">
+    <span class="fechar" onclick="fecharConfig()">×</span>
+    <h3>Configurações</h3>
+    <label>Símbolo</label>
+    <select id="simbolo" class="input">
+      <option value="frxEURUSD">frxEURUSD</option>
+      <option value="volatility_10">volatility_10</option>
+      <option value="volatility_25">volatility_25</option>
+      <option value="volatility_50">volatility_50</option>
+      <option value="volatility_75">volatility_75</option>
+      <option value="volatility_100">volatility_100</option>
+    </select>
+    <label>Stake Inicial $</label>
+    <input type="number" id="stake" class="input" value="0.35" step="0.01">
+    <label>Gestão de Banca</label>
+    <select id="gestao" class="input">
+      <option value="1">Conservador 1%</option>
+      <option value="2">Moderado 2%</option>
+      <option value="5">Agressivo 5%</option>
+    </select>
+    <label>Bot</label>
+    <select id="bot" class="input">
+      <option value="ANA">ANA - Dígito Gêmeo</option>
+      <option value="CRIPTON">CRIPTON - Par/Ímpar</option>
+      <option value="ZIRONY">ZIRONY - Dígito Frio</option>
+      <option value="FENIX">FENIX - Martingale</option>
+      <option value="RIVEN">RIVEN - Anti-Tendência</option>
+      <option value="ORIGON">ORIGON - Tendência</option>
+      <option value="MAXB">MAXB - Top Frequência</option>
+    </select>
+    <button class="btn-green" id="btnConectar">Conectar</button>
+  </div>
+</div>
+
+<!-- AUDIO -->
+<audio id="somWin" src="https://cdn.pixabay.com/audio/2022/03/24/audio_d171cf3e90.mp3"></audio>
+<audio id="somLoss" src="https://cdn.pixabay.com/audio/2022/03/10/audio_62b7fbfa8f.mp3"></audio>
+
+<script>
+let ws, conectado=false, rodando=false, saldo=0, saldoInicial=0, lucroTotal=0, totalOps=0;
+let digitos=Array(10).fill(0), historicoDigitos=[], ultimoTick=null, ultimoDigito=null, contratoAberto=false;
+let stakeAtual=0.35, gestao=1, botSelecionado='ANA', martingale=1, somLigado=true;
+
+const BOTS = {
+  ANA: (d) => historicoDigitos.length > 1 && d === historicoDigitos[historicoDigitos.length-1],
+  CRIPTON: (d) => d % 2 === 0,
+  ZIRONY: (d) => historicoDigitos.length > 20 && !historicoDigitos.slice(-20).includes(d),
+  FENIX: (d) => true,
+  RIVEN: (d) => historicoDigitos.length > 3 && d < historicoDigitos[historicoDigitos.length-1],
+  ORIGON: (d) => historicoDigitos.length > 3 && d > historicoDigitos[historicoDigitos.length-1],
+  MAXB: (d) => d === digitos.indexOf(Math.max(...digitos))
+};
+
+function abrirConfig(){ document.getElementById('modalConfig').style.display='block'; }
+function fecharConfig(){ document.getElementById('modalConfig').style.display='none'; }
+function limparHist(){ document.getElementById('historico').innerHTML='<tr><th>Hora</th><th>Estratégia</th><th>Tick</th><th>Preço</th><th>Resultado</th></tr>'; totalOps=0; lucroTotal=0; }
+
+function notificar(titulo, corpo){
+  if(Notification.permission === "granted"){
+    new Notification(titulo, {body: corpo, icon: "https://cdn-icons-png.flaticon.com/512/561/561127.png"});
+  }
+}
+
+function tocarSom(win){
+  if(!somLigado) return;
+  document.getElementById(win ? 'somWin' : 'somLoss').play();
+}
+
+document.getElementById('btnSom').onclick = () => {
+  somLigado = !somLigado;
+  document.getElementById('btnSom').innerText = somLigado ? '🔔 Som: ON' : '🔕 Som: OFF';
+}
+
+function atualizarGrafico(){
+  let barras = document.getElementById('barras');
+  barras.innerHTML='';
+  let max = Math.max(...digitos,1);
+  digitos.forEach((v,i)=>{
+    let pct = max>0 ? ((v/max)*100).toFixed(0) : 0;
+    let h = (v/max)*100;
+    barras.innerHTML += `<div style="height:${h}%" class="${v===Math.max(...digitos)?'ativo':''}"><span>${pct}%</span></div>`;
+  });
+}
+atualizarGrafico();
+
+function calcularStake(win){
+  if(botSelecionado === 'FENIX'){
+    if(win) martingale = 1; else martingale *= 2;
+  } else martingale = 1;
+  
+  let pct = (gestao / 100) * martingale;
+  stakeAtual = (saldo * pct).toFixed(2);
+  if(stakeAtual < 0.35) stakeAtual = 0.35;
+  return parseFloat(stakeAtual);
+}
+
+function enviarOrdem(){
+  if(contratoAberto) return;
+  contratoAberto=true;
+  document.getElementById('contrato').className='ativo-box';
+  let stake = calcularStake(true);
+  
+  let tipo = 'CALL';
+  if(botSelecionado === 'RIVEN') tipo = 'PUT';
+  if(botSelecionado === 'CRIPTON') tipo = ultimoDigito % 2 === 0 ? 'CALL' : 'PUT';
+  
+  ws.send(JSON.stringify({
+    buy: 1,
+    price: stake,
+    parameters: {
+      amount: stake,
+      basis: "stake",
+      contract_type: tipo,
+      currency: "USD",
+      duration: 1,
+      duration_unit: "t",
+      symbol: document.getElementById('simbolo').value
+    },
+    subscribe: 1
+  }));
+}
+
+function adicionarHistorico(bot, digito, preco, resultado){
+  totalOps++;
+  let hora = new Date().toLocaleTimeString();
+  let classe = resultado.includes('WIN') ? 'lucro' : 'preju';
+  document.getElementById('historico').innerHTML += 
+    `<tr><td>${hora}</td><td>${bot}</td><td>${digito}</td><td>${preco}</td><td class="${classe}">${resultado}</td></tr>`;
+  document.getElementById('infoOps').innerText = `Ops ${totalOps} | Banca: ${((saldo/saldoInicial)*100).toFixed(0)}%`;
+}
+
+document.getElementById('btnConectar').onclick = () => {
+  if(Notification.permission !== "granted"){
+    Notification.requestPermission();
+  }
+  
+  let token = document.getElementById('token').value;
+  if(!token) return alert('Cola o token');
+  stakeAtual = parseFloat(document.getElementById('stake').value);
+  gestao = parseFloat(document.getElementById('gestao').value);
+  botSelecionado = document.getElementById('bot').value;
+  
+  ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+  ws.onopen = () => ws.send(JSON.stringify({authorize: token}));
+  ws.onmessage = (e) => {
+    let data = JSON.parse(e.data);
+    if(data.error) return alert(data.error.message);
+    if(data.authorize){
+      conectado=true;
+      saldo = saldoInicial = data.authorize.balance;
+      document.getElementById('status').className='status conectado';
+      document.getElementById('status').innerText='Conectado';
+      document.getElementById('saldo').innerText='$'+saldo.toFixed(2)+' USD';
+      ws.send(JSON.stringify({ticks: document.getElementById('simbolo').value, subscribe:1}));
+      fecharConfig();
+    }
+    if(data.tick){
+      ultimoTick = data.tick.quote;
+      ultimoDigito = parseInt(ultimoTick.toString().slice(-1));
+      document.getElementById('ultDigito').innerText=ultimoDigito;
+      digitos[ultimoDigito]++;
+      historicoDigitos.push(ultimoDigito);
+      if(historicoDigitos.length > 100) historicoDigitos.shift();
+      atualizarGrafico();
+      
+      if(rodando && !contratoAberto){
+        if(BOTS[botSelecionado](ultimoDigito)){
+          document.getElementById('analisando').className='ativo-box';
+          setTimeout(()=> {
+            enviarOrdem();
+            document.getElementById('analisando').className='';
+          }, 800);
+        }
+      }
+    }
+    if(data.proposal_open_contract){
+      let contract = data.proposal_open_contract;
+      if(contract.status === 'won' || contract.status === 'lost'){
+        contratoAberto=false;
+        document.getElementById('contrato').className='';
+        document.getElementById('fechado').className='ativo-box';
+        setTimeout(()=>document.getElementById('fechado').className='',1000);
+        
+        let win = contract.status === 'won';
+        let profit = contract.profit;
+        calcularStake(win);
+        saldo += profit;
+        lucroTotal += profit;
+        document.getElementById('saldo').innerText='$'+saldo.toFixed(2)+' USD';
+        document.getElementById('lucro').innerText='$'+lucroTotal.toFixed(2);
+        document.getElementById('lucro').className = profit>0 ? 'lucro' : 'preju';
+        adicionarHistorico(botSelecionado, ultimoDigito, contract.buy_price, win ? 'WIN' : 'LOSS');
+        
+        // SOM + NOTIFICAÇÃO
+        tocarSom(win);
+        notificar(`M.V INVESTIMENTO - ${win ? 'WIN' : 'LOSS'}`, `Resultado: $${profit.toFixed(2)} | Saldo: $${saldo.toFixed(2)}`);
+      }
+    }
+  }
+}
+
+document.getElementById('btnPlay').onclick = () => {
+  if(!conectado) return alert('Conecta primeiro');
+  rodando=!rodando;
+  document.getElementById('btnPlay').className = rodando? 'play rodando' : 'play';
+  alert(rodando? `Bot ${botSelecionado} Iniciado` : 'Bot Parado');
+}
+</script>
+</body>
+</html>
